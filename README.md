@@ -28,4 +28,4 @@ A real-time bookmark manager built with **Next.js 15 (App Router)**, **Supabase*
 ## 📦 Tech Stack
 - **Frontend:** Next.js 15, React, Tailwind CSS
 - **Backend:** Supabase (PostgreSQL, Auth, Realtime)
-- **Deployment:** Vercel
+
