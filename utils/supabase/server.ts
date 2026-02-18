@@ -1,31 +1,30 @@
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
+// utils/supabase/server.ts
+
+import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
+// Note: Ye function ASYNC hai kyunki cookies padhna time leta hai
 export async function createClient() {
-    const cookieStore = await cookies()
+    const cookieStore = await cookies() // Next.js 15 mein Await zaroori hai
 
     return createServerClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
         {
             cookies: {
-                get(name: string) {
-                    return cookieStore.get(name)?.value
+                // Sirf cookie padhne ka method chahiye server ko
+                getAll() {
+                    return cookieStore.getAll()
                 },
-                // Server components mostly read karte hain, write nahi
-                set(name: string, value: string, options: CookieOptions) {
+                // Set/Remove hum Server Actions ya Middleware mein karte hain mostly
+                setAll(cookiesToSet) {
                     try {
-                        cookieStore.set({ name, value, ...options })
-                    } catch (error) {
-                        // Server Component se cookies set nahi kar sakte, middleware chahiye hota hai
-                        // Par Dashboard check karne ke liye ye chalega
-                    }
-                },
-                remove(name: string, options: CookieOptions) {
-                    try {
-                        cookieStore.delete({ name, ...options })
-                    } catch (error) {
-                        // Ignored
+                        cookiesToSet.forEach(({ name, value, options }) =>
+                            cookieStore.set(name, value, options)
+                        )
+                    } catch {
+                        // Server Component se cookies set nahi kar sakte (Read Only mode)
+                        // Isliye ye empty catch block hai
                     }
                 },
             },

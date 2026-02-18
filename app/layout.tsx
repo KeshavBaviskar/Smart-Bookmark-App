@@ -15,11 +15,11 @@ export default function RootLayout({
     children: React.ReactNode;
 }>) {
     return (
-        // 👇 YE tags zaroori hain (HTML aur BODY)
         <html lang="en">
-            <body className={inter.className}>
-                <main className="min-h-screen bg-gray-50 text-gray-900">
-                    {/* Navbar yahan aa sakta hai */}
+            <body
+                className={`${inter.className} bg-gradient-to-b from-slate-50 via-sky-50/60 to-slate-100 text-slate-900 antialiased`}
+            >
+                <main className="min-h-screen flex items-center justify-center px-4 py-10">
                     {children}
                 </main>
             </body>

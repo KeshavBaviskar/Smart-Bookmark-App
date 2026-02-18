@@ -18,7 +18,7 @@ export default function LoginButton() {
     return (
         <button
             onClick={handleLogin}
-            className="bg-white text-black border border-gray-300 px-4 py-2 rounded-md hover:bg-gray-100 flex items-center gap-2 font-medium transition-colors"
+            className="inline-flex items-center justify-center gap-2 rounded-full border border-sky-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-900 shadow-sm transition hover:border-sky-400 hover:bg-sky-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
         >
             {/* Google Logo SVG */}
             <svg className="w-5 h-5" viewBox="0 0 24 24">

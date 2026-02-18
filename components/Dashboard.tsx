@@ -4,8 +4,24 @@ import { createClient } from '@/utils/supabase/client'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
+type Bookmark = {
+    id: number
+    title: string
+    url: string
+    created_at: string
+}
+
+const getDomain = (link: string) => {
+    try {
+        const { hostname } = new URL(link)
+        return hostname.replace(/^www\./, '')
+    } catch {
+        return link
+    }
+}
+
 export default function Dashboard({ user }: { user: any }) {
-    const [bookmarks, setBookmarks] = useState<any[]>([])
+    const [bookmarks, setBookmarks] = useState<Bookmark[]>([])
     const [title, setTitle] = useState('')
     const [url, setUrl] = useState('')
     const [loading, setLoading] = useState(false)
@@ -13,7 +29,6 @@ export default function Dashboard({ user }: { user: any }) {
     const router = useRouter()
 
     useEffect(() => {
-        // 1. Fetch Initial Data
         const fetchBookmarks = async () => {
             const { data, error } = await supabase
                 .from('bookmarks')
@@ -26,37 +41,36 @@ export default function Dashboard({ user }: { user: any }) {
 
         fetchBookmarks()
 
-        // 2. Real-time Subscription (Fixed)
-        console.log("Setting up Realtime connection...") // Debug Log
-
         const channel = supabase
             .channel('realtime bookmarks')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'bookmarks' }, (payload) => {
-                console.log("Change received!", payload) // Debug Log
-
-                if (payload.eventType === 'INSERT') {
-                    setBookmarks((prev) => [payload.new, ...prev])
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'bookmarks' },
+                (payload) => {
+                    if (payload.eventType === 'INSERT') {
+                        const newBookmark = payload.new as Bookmark
+                        setBookmarks((prev) => [newBookmark, ...prev])
+                    }
+                    if (payload.eventType === 'DELETE') {
+                        const oldBookmark = payload.old as Bookmark
+                        setBookmarks((prev) =>
+                            prev.filter((item) => item.id !== oldBookmark.id)
+                        )
+                    }
                 }
-                if (payload.eventType === 'DELETE') {
-                    setBookmarks((prev) => prev.filter((item) => item.id !== payload.old.id))
-                }
-            })
-            .subscribe((status) => {
-                console.log("Realtime Status:", status) // Ye "SUBSCRIBED" aana chahiye
-            })
+            )
+            .subscribe()
 
         return () => {
             supabase.removeChannel(channel)
         }
-    }, []) // <--- IMPORTANT: Yahan se [supabase] hata diya hai taaki re-render pe connection na tute
+    }, [])
 
-    // 3. Add Bookmark (With Instant UI Update)
     const addBookmark = async (e: React.FormEvent) => {
         e.preventDefault()
         if (!title || !url) return
         setLoading(true)
 
-        // .select() lagaya hai taaki humein turant naya data mile
         const { data, error } = await supabase.from('bookmarks').insert({
             title,
             url,
@@ -66,8 +80,6 @@ export default function Dashboard({ user }: { user: any }) {
         if (error) {
             alert(error.message)
         } else if (data) {
-            // Instant update (Backup for Realtime)
-            // Hum check karenge ki kya ye pehle se list mein hai (Realtime ki wajah se duplicate na ho)
             setBookmarks((prev) => {
                 if (prev.find(b => b.id === data[0].id)) return prev
                 return [data[0], ...prev]
@@ -79,7 +91,6 @@ export default function Dashboard({ user }: { user: any }) {
     }
 
     const deleteBookmark = async (id: number) => {
-        // UI se pehle hi hata do (Optimistic Update)
         setBookmarks((prev) => prev.filter((item) => item.id !== id))
         await supabase.from('bookmarks').delete().eq('id', id)
     }
@@ -90,45 +101,109 @@ export default function Dashboard({ user }: { user: any }) {
     }
 
     return (
-        <div className="w-full max-w-md">
-            <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-bold">Your Bookmarks</h2>
-                <button onClick={handleLogout} className="text-sm text-red-500 hover:underline">Logout</button>
+        <div className="w-full space-y-6">
+            <div className="flex items-start justify-between gap-3">
+                <div>
+                    <h2 className="text-lg font-semibold text-slate-900">
+                        Your bookmarks
+                    </h2>
+                    {user?.email && (
+                        <p className="mt-1 text-xs text-slate-500">
+                            Signed in as <span className="font-medium text-slate-800">{user.email}</span>
+                        </p>
+                    )}
+                </div>
+                <button
+                    onClick={handleLogout}
+                    className="inline-flex items-center rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-medium text-slate-600 shadow-sm transition hover:bg-slate-50"
+                >
+                    Logout
+                </button>
             </div>
 
-            <form onSubmit={addBookmark} className="mb-8 space-y-3 bg-white p-4 rounded shadow">
-                <input
-                    type="text"
-                    placeholder="Title"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    className="w-full border p-2 rounded"
-                />
-                <input
-                    type="url"
-                    placeholder="URL"
-                    value={url}
-                    onChange={(e) => setUrl(e.target.value)}
-                    className="w-full border p-2 rounded"
-                />
-                <button disabled={loading} className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700">
-                    {loading ? 'Adding...' : 'Add Bookmark'}
+            <form
+                onSubmit={addBookmark}
+                className="mb-2 grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4 md:p-5 shadow-sm"
+            >
+                <div className="grid gap-3 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1.2fr)]">
+                    <div className="space-y-1.5">
+                        <label className="text-xs font-medium text-slate-600">
+                            Title
+                        </label>
+                        <input
+                            type="text"
+                            placeholder="Design systems to read later"
+                            value={title}
+                            onChange={(e) => setTitle(e.target.value)}
+                            className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-200"
+                        />
+                    </div>
+                    <div className="space-y-1.5">
+                        <label className="text-xs font-medium text-slate-600">
+                            URL
+                        </label>
+                        <input
+                            type="url"
+                            placeholder="https://example.com/article"
+                            value={url}
+                            onChange={(e) => setUrl(e.target.value)}
+                            className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-200"
+                        />
+                    </div>
+                </div>
+                <button
+                    disabled={loading}
+                    className="inline-flex items-center justify-center rounded-md bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                    {loading ? 'Adding bookmark…' : 'Add bookmark'}
                 </button>
             </form>
 
             <div className="space-y-3">
-                {bookmarks.length === 0 ? <p className="text-gray-500 text-center">No bookmarks yet.</p> : null}
-                {bookmarks.map((item) => (
-                    <div key={item.id} className="flex justify-between items-center bg-gray-50 p-3 rounded border">
-                        <div>
-                            <a href={item.url} target="_blank" rel="noopener noreferrer" className="font-medium text-blue-600 hover:underline">
-                                {item.title}
-                            </a>
-                            <p className="text-xs text-gray-400">{new Date(item.created_at).toLocaleDateString()}</p>
+                {bookmarks.length === 0 ? (
+                    <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 py-6 text-center text-sm text-slate-500">
+                        No bookmarks yet. Add your first link above to get started.
+                    </p>
+                ) : null}
+
+                {bookmarks.map((item) => {
+                    const domain = getDomain(item.url)
+                    const initial = domain?.charAt(0)?.toUpperCase() || 'B'
+
+                    return (
+                        <div
+                            key={item.id}
+                            className="flex items-start gap-3 rounded-lg border border-slate-200 bg-white p-3.5 text-sm text-slate-900 shadow-sm transition hover:border-sky-500/70"
+                        >
+                            <div className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-sky-700">
+                                {initial}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                                <a
+                                    href={item.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="line-clamp-1 font-medium text-sky-700 hover:text-sky-900 hover:underline"
+                                >
+                                    {item.title}
+                                </a>
+                                <p className="mt-0.5 line-clamp-1 text-xs text-slate-500">
+                                    {domain}
+                                </p>
+                                <p className="mt-1 text-[11px] text-slate-400">
+                                    Saved on {new Date(item.created_at).toLocaleDateString()}
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => deleteBookmark(item.id)}
+                                className="ml-2 inline-flex h-8 w-8 items-center justify-center rounded-full border border-transparent text-xs text-slate-400 transition hover:bg-rose-50 hover:text-rose-500"
+                                aria-label="Delete bookmark"
+                            >
+                                🗑️
+                            </button>
                         </div>
-                        <button onClick={() => deleteBookmark(item.id)} className="text-red-500 hover:bg-red-50 p-1 rounded">🗑️</button>
-                    </div>
-                ))}
+                    )
+                })}
             </div>
         </div>
     )
