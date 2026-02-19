@@ -86,10 +86,20 @@ export default function Dashboard({ user }: { user: any }) {
 
         setupRealtime()
 
+        // 3. Listen for Auth Changes (Tab B Logout Fix)
+        const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+            if (event === 'SIGNED_OUT') {
+                console.log("User logged out from another tab! Refreshing...");
+                router.refresh(); // Ye line turant page ko Login screen pe bhej degi
+            }
+        });
+
         return () => {
             if (channel) {
                 supabase.removeChannel(channel)
             }
+            // Safai: Component unmount hone pe listener hata do
+            authListener.subscription.unsubscribe();
         }
     }, [supabase, user?.id])
 
