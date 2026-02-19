@@ -1,20 +1,23 @@
-import LoginButton from '@/components/LoginButton'
-import Dashboard from '@/components/Dashboard'
-import { createClient } from '@/utils/supabase/server'
+import LoginButton from "@/components/LoginButton";
+import Dashboard from "@/components/Dashboard";
+import { createClient } from "@/utils/supabase/server";
 
 export default async function Home() {
-  // Server par check karo user kaun hai
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   return (
     <div className="w-full max-w-3xl mx-auto">
       <div className="mb-8 text-center">
         <h1 className="text-3xl md:text-4xl font-semibold text-slate-900">
-          Smart <span className="text-sky-600">Bookmark</span> <span className="align-middle">🔖</span>
+          Smart <span className="text-sky-600">Bookmark</span>{" "}
+          <span className="align-middle">🔖</span>
         </h1>
         <p className="mt-2 text-sm md:text-base text-slate-600">
-          Save important links in one simple place and access them from anywhere.
+          Save important links in one simple place and access them from
+          anywhere.
         </p>
       </div>
 
@@ -34,5 +37,5 @@ export default async function Home() {
         )}
       </div>
     </div>
-  )
+  );
 }
