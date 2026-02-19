@@ -25,14 +25,21 @@ export default function Dashboard({ user }: { user: any }) {
     const [title, setTitle] = useState('')
     const [url, setUrl] = useState('')
     const [loading, setLoading] = useState(false)
+
+    // Client creation
     const supabase = createClient()
     const router = useRouter()
 
     useEffect(() => {
+        // Agar user ID nahi hai toh kuch mat karo
+        if (!user?.id) return
+
+        // 1. Fetch Initial Bookmarks
         const fetchBookmarks = async () => {
             const { data, error } = await supabase
                 .from('bookmarks')
                 .select('*')
+                .eq('user_id', user.id)
                 .order('created_at', { ascending: false })
 
             if (data) setBookmarks(data)
@@ -41,30 +48,50 @@ export default function Dashboard({ user }: { user: any }) {
 
         fetchBookmarks()
 
-        const channel = supabase
-            .channel('realtime bookmarks')
-            .on(
-                'postgres_changes',
-                { event: '*', schema: 'public', table: 'bookmarks' },
-                (payload) => {
-                    if (payload.eventType === 'INSERT') {
-                        const newBookmark = payload.new as Bookmark
-                        setBookmarks((prev) => [newBookmark, ...prev])
+        let channel: any;
+
+        // 2. Realtime Subscription (THE REALTIME AUTH FIX 🛠️)
+        const setupRealtime = async () => {
+            // STEP A: Dusre tab ke WebSocket ko token do taaki INSERT RLS pass ho jaye
+            const { data: { session } } = await supabase.auth.getSession()
+            if (session?.access_token) {
+                supabase.realtime.setAuth(session.access_token)
+            }
+
+            // STEP B: Ab subscribe karo
+            channel = supabase
+                .channel('realtime bookmarks')
+                .on(
+                    'postgres_changes',
+                    { event: '*', schema: 'public', table: 'bookmarks' },
+                    (payload) => {
+                        if (payload.eventType === 'INSERT') {
+                            const newBookmark = payload.new as Bookmark
+                            // Duplicate Check
+                            setBookmarks((prev) => {
+                                if (prev.find(b => b.id === newBookmark.id)) return prev
+                                return [newBookmark, ...prev]
+                            })
+                        }
+                        if (payload.eventType === 'DELETE') {
+                            const oldBookmark = payload.old as Bookmark
+                            setBookmarks((prev) =>
+                                prev.filter((item) => item.id !== oldBookmark.id)
+                            )
+                        }
                     }
-                    if (payload.eventType === 'DELETE') {
-                        const oldBookmark = payload.old as Bookmark
-                        setBookmarks((prev) =>
-                            prev.filter((item) => item.id !== oldBookmark.id)
-                        )
-                    }
-                }
-            )
-            .subscribe()
+                )
+                .subscribe()
+        }
+
+        setupRealtime()
 
         return () => {
-            supabase.removeChannel(channel)
+            if (channel) {
+                supabase.removeChannel(channel)
+            }
         }
-    }, [])
+    }, [supabase, user?.id])
 
     const addBookmark = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -80,6 +107,7 @@ export default function Dashboard({ user }: { user: any }) {
         if (error) {
             alert(error.message)
         } else if (data) {
+            // Optimistic Update
             setBookmarks((prev) => {
                 if (prev.find(b => b.id === data[0].id)) return prev
                 return [data[0], ...prev]
@@ -91,6 +119,7 @@ export default function Dashboard({ user }: { user: any }) {
     }
 
     const deleteBookmark = async (id: number) => {
+        // Optimistic Delete
         setBookmarks((prev) => prev.filter((item) => item.id !== id))
         await supabase.from('bookmarks').delete().eq('id', id)
     }
@@ -102,6 +131,7 @@ export default function Dashboard({ user }: { user: any }) {
 
     return (
         <div className="w-full space-y-6">
+            {/* Header Section */}
             <div className="flex items-start justify-between gap-3">
                 <div>
                     <h2 className="text-lg font-semibold text-slate-900">
@@ -121,6 +151,7 @@ export default function Dashboard({ user }: { user: any }) {
                 </button>
             </div>
 
+            {/* Input Form */}
             <form
                 onSubmit={addBookmark}
                 className="mb-2 grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4 md:p-5 shadow-sm"
@@ -159,6 +190,7 @@ export default function Dashboard({ user }: { user: any }) {
                 </button>
             </form>
 
+            {/* Bookmarks List */}
             <div className="space-y-3">
                 {bookmarks.length === 0 ? (
                     <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 py-6 text-center text-sm text-slate-500">

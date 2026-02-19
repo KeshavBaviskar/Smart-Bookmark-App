@@ -28,7 +28,7 @@ export default async function Home() {
             </p>
             <LoginButton />
             <p className="text-xs text-slate-400">
-              Your bookmarks stay private and are stored securely with Supabase.
+              Your bookmarks stay private and are stored securely.
             </p>
           </div>
         )}
