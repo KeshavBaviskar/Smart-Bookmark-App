@@ -3,7 +3,7 @@
 A real-time bookmark manager built with **Next.js 15 (App Router)**, **Supabase**, and **Tailwind CSS**.
 
 ## 🚀 Live Demo
-[LINK_HERE] (Yahan apna Vercel link paste kar)
+smart-bookmark-app-six-nu.vercel.app  
 
 ## ✨ Features
 - **Google Authentication:** Secure login via Google OAuth (Supabase Auth).
