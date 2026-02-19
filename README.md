@@ -11,19 +11,25 @@ smart-bookmark-app-six-nu.vercel.app
 - **Real-time Updates:** Bookmarks appear instantly across tabs without refreshing (Supabase Realtime).
 - **Responsive UI:** Styled with Tailwind CSS.
 
-## 🛠️ Challenges & Solutions
+## 🛠️ Problems I Faced and How I Solved Them
 
-### 1. Google OAuth 404 Error
-**Problem:** After logging in with Google, I was redirected to a 404 page.
-**Solution:** I realized I hadn't created the Route Handler to exchange the auth code for a session. I created `app/auth/callback/route.ts` using `@supabase/ssr` to handle the callback and redirect users to the dashboard.
+Coming from a basic MERN stack background, building a full-stack app with Next.js 15 (App Router) and Supabase was a great learning experience. Here are the main challenges I faced and how I solved them:
 
-### 2. Connection Resets in Real-time
-**Problem:** The real-time subscription was disconnecting frequently, requiring page refreshes to see new bookmarks.
-**Solution:** I optimized the `useEffect` hook in `Dashboard.tsx` to prevent re-subscriptions on every render. I also enabled "Realtime" specifically for the `bookmarks` table in the Supabase Dashboard.
+### 1. Next.js 15 Async Cookies Error
+* **The Problem:** When setting up Google Authentication, my code was crashing. I realized that in the new Next.js 15 update, the `cookies()` function became asynchronous, which broke the standard Supabase auth setup.
+* **The Solution:** I updated my `utils/supabase/server.ts` and auth callback route. I added `await cookies()` to make sure the server waits for the cookies to load before trying to read or write the user session.
 
-### 3. Next.js 15 Async Cookies
-**Problem:** I encountered a `TypeError: cookieStore.get is not a function`.
-**Solution:** Next.js 15 made `cookies()` asynchronous. I updated my server-side code to `await cookies()` before accessing the cookie store.
+### 2. "Row violates row-level security policy" Error
+* **The Problem:** After deploying the app, I tried to add a bookmark, but the browser gave me an RLS (Row Level Security) error and blocked the insert.
+* **The Solution:** I checked my Supabase Dashboard and noticed my `INSERT` and `DELETE` policies were accidentally set to `public`. I changed the Target Role to `authenticated` and made sure the rule was `auth.uid() = user_id`. This fixed the error and completely secured my database.
+
+### 3. Realtime Sync Not Working for "Inserts" Across Tabs
+* **The Problem:** I wanted bookmarks to sync instantly across multiple open tabs. Deleting a bookmark in Tab A updated Tab B instantly. However, *adding* a bookmark in Tab A did not show up in Tab B unless I refreshed the page.
+* **The Solution:** I figured out that the WebSocket connection in Tab B was starting before the user's auth token was fully ready. Because of my database security (RLS), Supabase refused to send the new data to a connection without a token. I fixed this by manually passing the token using `supabase.realtime.setAuth(session.access_token)` inside my `useEffect` before subscribing to the channel.
+
+### 4. Cross-Tab Logout Glitch
+* **The Problem:** If I had the app open in two tabs and logged out from Tab A, Tab B would still show the dashboard. If I tried to add a bookmark in Tab B, it threw an error because the session was already gone.
+* **The Solution:** I added Supabase's `onAuthStateChange` listener in my code. Now, if it detects a `SIGNED_OUT` event from any tab, it automatically calls `router.refresh()`. This safely redirects all open tabs back to the login screen at the same time.
 
 ## 📦 Tech Stack
 - **Frontend:** Next.js 15, React, Tailwind CSS
