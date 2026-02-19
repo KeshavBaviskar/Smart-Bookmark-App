@@ -10,7 +10,7 @@ A real-time bookmark manager built with **Next.js 15 (App Router)**, **Supabase*
 
 ## 🛠️ Problems I Faced and How I Solved Them
 
-Coming from a basic MERN stack background, building a full-stack app with Next.js 15 (App Router) and Supabase was a great learning experience. Here are the main challenges I faced and how I solved them:
+Coming from MERN stack background, building a full-stack app with Next.js 15 (App Router) and Supabase was a great learning experience. Here are the main challenges I faced and how I solved them:
 
 ### 1. Next.js 15 Async Cookies Error
 * **The Problem:** When setting up Google Authentication, my code was crashing. I realized that in the new Next.js 15 update, the `cookies()` function became asynchronous, which broke the standard Supabase auth setup.
